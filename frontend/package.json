@@ -1,0 +1,22 @@
+{
+  "name": "browser-memory-frontend",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "dagre": "^0.8.5",
+    "next": "14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "reactflow": "^11.11.4",
+    "recharts": "^3.7.0"
+  },
+  "devDependencies": {
+    "@types/dagre": "^0.7.53",
+    "@types/react": "19.2.14",
+    "typescript": "5.9.3"
+  }
+}
