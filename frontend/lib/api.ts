@@ -1,25 +1,56 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Memory, BrowserEvent, WorkflowGraph, AnalyticsCharts } from "./types";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
+const STORAGE_URL_KEY = "browser_memory_supabase_url";
+const STORAGE_ANON_KEY = "browser_memory_supabase_anon_key";
+const PLACEHOLDER = "https://placeholder.supabase.co";
+
+function getSupabaseUrl(): string {
+  if (typeof window !== "undefined") {
+    const stored = localStorage.getItem(STORAGE_URL_KEY);
+    if (stored) return stored;
+  }
+  return process.env.NEXT_PUBLIC_SUPABASE_URL || PLACEHOLDER;
+}
+
+function getSupabaseAnonKey(): string {
+  if (typeof window !== "undefined") {
+    const stored = localStorage.getItem(STORAGE_ANON_KEY);
+    if (stored) return stored;
+  }
+  return process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key";
+}
 
 export const isConfigured =
   typeof window === "undefined" ||
-  (!!process.env.NEXT_PUBLIC_SUPABASE_URL &&
-    !process.env.NEXT_PUBLIC_SUPABASE_URL.includes("placeholder") &&
-    !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY &&
-    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.includes("placeholder"));
+  (!!getSupabaseUrl() &&
+    !getSupabaseUrl().includes("placeholder") &&
+    !!getSupabaseAnonKey() &&
+    !getSupabaseAnonKey().includes("placeholder"));
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(getSupabaseUrl(), getSupabaseAnonKey());
 
 /** Base URL for API: Supabase Edge Functions (default) or custom backend. */
 export function getApiBase(): string {
   const custom = process.env.NEXT_PUBLIC_API_BASE;
   if (custom && !custom.includes("placeholder")) return custom;
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = getSupabaseUrl();
   if (url && !url.includes("placeholder")) return `${url.replace(/\/$/, "")}/functions/v1`;
   return "";
+}
+
+/** Set Supabase config in localStorage so visitors can use their own project (e.g. from GitHub Pages). */
+export function setRuntimeSupabaseConfig(url: string, anonKey: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(STORAGE_URL_KEY, url.trim());
+  localStorage.setItem(STORAGE_ANON_KEY, anonKey.trim());
+}
+
+/** Clear runtime Supabase config from localStorage. */
+export function clearRuntimeSupabaseConfig(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(STORAGE_URL_KEY);
+  localStorage.removeItem(STORAGE_ANON_KEY);
 }
 
 export async function authedFetch(path: string, init?: RequestInit): Promise<Response> {

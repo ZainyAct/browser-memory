@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import {
   supabase,
   isConfigured,
+  setRuntimeSupabaseConfig,
   searchMemories,
   getRecentMemories,
   getRecentEvents,
@@ -16,6 +17,75 @@ import type { Memory, BrowserEvent, ViewTab, WorkflowGraph, AnalyticsCharts } fr
 
 const WorkflowGraphView = dynamic(() => import("@/app/components/WorkflowGraph"), { ssr: false });
 const AnalyticsChartsView = dynamic(() => import("@/app/components/AnalyticsCharts"), { ssr: false });
+
+function SetupScreen({ onConfigured }: { onConfigured: () => void }) {
+  const [url, setUrl] = useState("");
+  const [anonKey, setAnonKey] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    const u = url.trim();
+    const k = anonKey.trim();
+    if (!u || !k) {
+      setError("Please enter both Supabase URL and anon key.");
+      return;
+    }
+    if (!u.startsWith("https://") || !u.includes("supabase")) {
+      setError("URL should look like https://xxxx.supabase.co");
+      return;
+    }
+    setRuntimeSupabaseConfig(u, k);
+    onConfigured();
+  };
+
+  return (
+    <div className="login-wrap">
+      <div className="login-card card setup-card">
+        <h1 className="login-title">Browser Memory Store</h1>
+        <p className="login-subtitle">
+          This demo is not configured. To let others use it from GitHub Pages with your Supabase project:
+        </p>
+        <ol style={{ textAlign: "left", color: "var(--text-muted)", margin: "0 0 20px", paddingLeft: 20, fontSize: 14 }}>
+          <li>In this repo: <strong>Settings → Secrets and variables → Actions</strong>.</li>
+          <li>Add <code>NEXT_PUBLIC_SUPABASE_URL</code> (your project URL) and <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code> (anon key).</li>
+          <li>Push to <code>main</code> or run <strong>Actions → Deploy to GitHub Pages</strong>. The live site will use your Supabase so visitors can sign in and try the app.</li>
+        </ol>
+        <p className="login-subtitle" style={{ marginTop: 16, marginBottom: 8 }}>
+          Or use your own project (stored in your browser only):
+        </p>
+        <form onSubmit={handleSubmit} style={{ marginBottom: 16 }}>
+          <input
+            type="url"
+            placeholder="Supabase URL (e.g. https://xxxx.supabase.co)"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            className="login-input"
+            style={{ marginBottom: 10 }}
+            autoComplete="url"
+          />
+          <input
+            type="password"
+            placeholder="Supabase anon key"
+            value={anonKey}
+            onChange={(e) => setAnonKey(e.target.value)}
+            className="login-input"
+            style={{ marginBottom: 10 }}
+            autoComplete="off"
+          />
+          {error && <p style={{ color: "var(--error)", fontSize: 14, marginBottom: 10 }}>{error}</p>}
+          <button type="submit" className="login-btn">
+            Use this project
+          </button>
+        </form>
+        <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
+          See the README for full setup (schema, Edge Functions).
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function Page() {
   const [email, setEmail] = useState("");
@@ -35,23 +105,7 @@ export default function Page() {
 
   if (typeof window !== "undefined" && !isConfigured) {
     return (
-      <div className="login-wrap">
-        <div className="login-card card setup-card">
-          <h1 className="login-title">Browser Memory Store</h1>
-          <p className="login-subtitle">
-            This demo is not configured. To use it yourself:
-          </p>
-          <ol style={{ textAlign: "left", color: "var(--text-muted)", margin: "0 0 20px", paddingLeft: 20 }}>
-            <li>Fork or clone the <a href="https://github.com" style={{ color: "var(--accent)" }}>repo</a>.</li>
-            <li>Create a Supabase project and run <code>supabase/schema.sql</code>.</li>
-            <li>Deploy the backend (e.g. Render, Railway) or run it locally.</li>
-            <li>Set <code>NEXT_PUBLIC_SUPABASE_URL</code>, <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, and <code>NEXT_PUBLIC_API_BASE</code> in your frontend env, then build and deploy.</li>
-          </ol>
-          <p style={{ fontSize: 14, color: "var(--text-muted)" }}>
-            See the README in the repository for full setup.
-          </p>
-        </div>
-      </div>
+      <SetupScreen onConfigured={() => window.location.reload()} />
     );
   }
 
