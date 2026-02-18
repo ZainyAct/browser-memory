@@ -103,6 +103,7 @@ export default function Page() {
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
   const [isSignUp, setIsSignUp] = useState(false);
+  const [showExtensionModal, setShowExtensionModal] = useState(false);
 
   if (typeof window !== "undefined" && !isConfigured) {
     return (
@@ -280,7 +281,17 @@ export default function Page() {
     if (token) {
       await navigator.clipboard.writeText(token);
       setStatus("Access token copied. Paste it in the extension Options.");
+      setShowExtensionModal(true);
     } else setStatus("Not logged in.");
+  };
+
+  const copyTokenFromModal = async () => {
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    if (token) {
+      await navigator.clipboard.writeText(token);
+      setStatus("Token copied. Paste it in the extension Options.");
+    }
   };
 
   if (!loggedIn) {
@@ -330,6 +341,42 @@ export default function Page() {
 
   return (
     <div className="app-wrap">
+      {showExtensionModal && (
+        <div className="modal-overlay" onClick={() => setShowExtensionModal(false)} role="dialog" aria-modal="true" aria-labelledby="extension-modal-title">
+          <div className="modal-card card" onClick={(e) => e.stopPropagation()}>
+            <h2 id="extension-modal-title" className="login-title" style={{ marginTop: 0 }}>Add the extension & token</h2>
+            <section style={{ marginBottom: 16 }}>
+              <h3 style={{ fontSize: 15, marginBottom: 8, color: "var(--text)" }}>1. Install the extension</h3>
+              <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 8 }}><strong>Firefox:</strong></p>
+              <ol style={{ margin: "0 0 12px", paddingLeft: 20, fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6 }}>
+                <li>Open <code style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>about:debugging</code> in the address bar.</li>
+                <li>Click <strong>This Firefox</strong>.</li>
+                <li>Click <strong>Load Temporary Add-on</strong>.</li>
+                <li>In the repo, open the <code>extension</code> folder and select <code>manifest.json</code>.</li>
+              </ol>
+              <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 4 }}><strong>Chrome:</strong></p>
+              <p style={{ fontSize: 14, color: "var(--text-muted)", margin: 0 }}>Go to <code style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>chrome://extensions</code> → turn on <strong>Developer mode</strong> → <strong>Load unpacked</strong> → select the <code>extension</code> folder.</p>
+            </section>
+            <section style={{ marginBottom: 20 }}>
+              <h3 style={{ fontSize: 15, marginBottom: 8, color: "var(--text)" }}>2. Add your token in the extension</h3>
+              <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6 }}>
+                <li>Right‑click the extension icon → <strong>Options</strong> (or open Options from the extensions page).</li>
+                <li>Enter your <strong>Supabase project URL</strong> (e.g. <code>https://xxxx.supabase.co</code>).</li>
+                <li>Paste the <strong>access token</strong> (click Copy token below, then paste in the token field).</li>
+                <li>Click <strong>Save</strong>, then reload the extension if needed.</li>
+              </ol>
+            </section>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <button type="button" className="btn-primary" onClick={copyTokenFromModal}>
+                Copy token
+              </button>
+              <button type="button" className="btn-secondary" onClick={() => setShowExtensionModal(false)}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <header className="app-header">
         <h1 className="app-title">Browser Memory Store</h1>
         <div className="app-actions">
