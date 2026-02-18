@@ -386,6 +386,9 @@ export default function Page() {
               <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 10 }}>
                 Or paste the token yourself: copy it below, open extension Options, enter the Supabase URL and token, then Save.
               </p>
+              <p style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 0 }}>
+                Tokens expire after about an hour. If the extension gets 401 errors, open this page again and click &quot;Send URL & token to extension&quot; (or copy a new token and Save in Options).
+              </p>
             </section>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button type="button" className="btn-primary" onClick={sendUrlAndTokenToExtension}>

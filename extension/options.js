@@ -11,11 +11,13 @@ function showStatus(msg, isError = false) {
 }
 
 async function load() {
-  const obj = await ext.storage.local.get(["supabaseUrl", "supabaseToken"]);
+  const obj = await ext.storage.local.get(["supabaseUrl", "supabaseToken", "tokenNeedsRefresh"]);
   supabaseUrlEl.value = obj.supabaseUrl || "";
   const supabaseToken = obj.supabaseToken;
   tokenEl.value = supabaseToken || "";
-  if (supabaseToken && obj.supabaseUrl) {
+  if (obj.tokenNeedsRefresh) {
+    showStatus("Your token may have expired (they last ~1 hour). Open the app, sign in, and click 'Send URL & token to extension' again, then Save here.", true);
+  } else if (supabaseToken && obj.supabaseUrl) {
     const len = supabaseToken.length;
     const preview = len > 20 ? supabaseToken.slice(0, 10) + "…" + supabaseToken.slice(-6) : "(short)";
     showStatus(`Loaded: token in storage (length ${len}). Preview: ${preview}`);
@@ -61,7 +63,8 @@ document.getElementById("save").addEventListener("click", async () => {
   const supabaseToken = obj2 && obj2.supabaseToken;
   const storedUrl = obj2 && obj2.supabaseUrl;
   if (supabaseToken === token && storedUrl === supabaseUrl) {
-    showStatus(`Saved. API: ${supabaseUrl}/functions/v1 — Reload the extension, then switch tabs to test.`);
+    await ext.storage.local.remove("tokenNeedsRefresh");
+    showStatus(`Saved. API: ${supabaseUrl}/functions/v1 — Reload the extension, then switch tabs to test. Tokens expire ~1h; send again from the app if you get 401s.`);
     console.log("[Browser Memory Options] Token saved and verified, length:", token.length);
   } else {
     showStatus("Save verification failed – storage read back different. See console. Reload extension and try again.", true);

@@ -45,7 +45,16 @@ async function sendEvent(payload) {
       const status = res.ok ? "ok" : res.status;
       console.log("[Browser Memory] Sent", payload.type, payload.url || "", "→", status);
     }
-    if (!res.ok && DEBUG) console.warn("[Browser Memory] Backend error:", res.status, await res.text());
+    if (!res.ok) {
+      const text = await res.text();
+      if (res.status === 401 && DEBUG) {
+        console.warn("[Browser Memory] Backend error: 401 – token may have expired. Open the app and click 'Send URL & token to extension' again.");
+        ext.storage.local.set({ tokenNeedsRefresh: true });
+      }
+      if (DEBUG && res.status !== 401) console.warn("[Browser Memory] Backend error:", res.status, text);
+    } else {
+      ext.storage.local.remove("tokenNeedsRefresh");
+    }
   } catch (e) {
     if (DEBUG) console.warn("[Browser Memory] Send failed (is backend running on :8000?):", e.message);
   }
