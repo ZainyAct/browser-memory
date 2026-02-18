@@ -1,10 +1,141 @@
 # Browser Memory Store
 
-A **searchable, self-updating memory store** for personalized browser agent behavior: capture browser interactions, store raw events in Supabase, summarize them into memories, and search over memories.
+A **searchable, self-updating memory store** for personalized browser agent behavior: capture browser interactions, store raw events in Supabase, summarize them into memories, and search over memories. **Backend runs entirely on Supabase Edge Functions** (no local server).
 
 ---
 
-## Git and GitHub Pages (for others to use)
+## Stack
+
+- **Supabase** – Auth, Postgres (events + memories), RLS, FTS, **Edge Functions** (ingest, summarize, search, workflow, analytics)
+- **Next.js** – Login, search UI, “Summarize last 20m”, workflow graph, analytics charts
+- **Browser extension (Chrome & Firefox)** – Capture tabs, clicks, form interactions; send to Edge Functions with Supabase token
+
+## Repo structure
+
+```
+browser-memory/
+  supabase/
+    schema.sql              # Tables, RLS, FTS, search_memories RPC
+    functions/              # Edge Functions (Deno)
+      _shared/              # CORS, auth, summarizer, workflow, analytics
+      ingest-event/
+      ingest-batch/
+      summarize-run/
+      search/
+      recent-memories/
+      recent-events/
+      workflow-graph/
+      analytics-charts/
+  frontend/                 # Next.js App Router
+  extension/                # Chrome & Firefox extension
+  backend/                  # Legacy FastAPI (optional; Edge Functions replace this)
+```
+
+---
+
+## 1. Supabase setup
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. In the **SQL Editor**, run the contents of **`supabase/schema.sql`** (tables, indexes, RLS, FTS, and `search_memories` RPC).
+3. In **Authentication** → **Providers**, enable Email (or your chosen provider).
+4. Create a user (or sign up from the frontend later).
+5. In **Project Settings** → **API**, copy **Project URL** and **anon public** key.
+
+---
+
+## 2. Deploy Edge Functions
+
+Install [Supabase CLI](https://supabase.com/docs/guides/cli) and link your project:
+
+```bash
+cd browser-memory
+npx supabase login
+npx supabase link --project-ref YOUR_PROJECT_REF
+```
+
+Deploy all functions:
+
+```bash
+npx supabase functions deploy ingest-event
+npx supabase functions deploy ingest-batch
+npx supabase functions deploy summarize-run
+npx supabase functions deploy search
+npx supabase functions deploy recent-memories
+npx supabase functions deploy recent-events
+npx supabase functions deploy workflow-graph
+npx supabase functions deploy analytics-charts
+```
+
+Or deploy in one go (if your CLI supports it):
+
+```bash
+npx supabase functions deploy
+```
+
+Functions will be available at `https://YOUR_PROJECT_REF.supabase.co/functions/v1/<function-name>`.
+
+---
+
+## 3. Frontend
+
+```bash
+cd frontend
+cp .env.example .env.local
+# Edit .env.local: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY
+# (No NEXT_PUBLIC_API_BASE needed – frontend uses SUPABASE_URL/functions/v1 by default)
+npm i
+npm run dev
+```
+
+- Open [http://localhost:3000](http://localhost:3000), sign in with your Supabase user.
+- Use **“Copy token for extension”** and paste that token (and your Supabase URL) into the extension Options.
+
+---
+
+## 4. Browser extension (Chrome or Firefox)
+
+1. **Chrome:** `chrome://extensions` → Developer mode → **Load unpacked** → select **`extension/`**.
+2. **Firefox:** `about:debugging` → This Firefox → **Load Temporary Add-on** → select **`extension/manifest.json`**.
+
+Then open the extension **Options** and set:
+
+- **Supabase project URL** – e.g. `https://xxxx.supabase.co`
+- **Supabase access token** – from the frontend (“Copy token for extension” after signing in).
+
+Click **Save**, then reload the extension. Events will be sent to `https://xxxx.supabase.co/functions/v1/ingest-event`.
+
+---
+
+## 5. Demo flow
+
+1. Supabase: schema applied, Edge Functions deployed.
+2. Frontend: `.env.local` with Supabase URL + anon key, `npm run dev`.
+3. Sign in on the frontend → Copy token for extension.
+4. Extension: Options → paste Supabase URL and token → Save.
+5. Browse (switch tabs, click, change inputs); extension sends events to Edge Functions.
+6. In the frontend, click **“Summarize last 20m”** to create memories.
+7. Use **Search**, **Recent memories**, **Recent events**, **Workflow graph**, and **Analytics** tabs.
+
+---
+
+## API (Edge Functions)
+
+All at `https://YOUR_PROJECT.supabase.co/functions/v1/<name>`. All require **Authorization: Bearer &lt;Supabase access token&gt;** (RLS applies per user).
+
+| Method | Function | Description |
+|--------|----------|-------------|
+| POST | `ingest-event` | Ingest one event (body: type, url, title, text_content, selector, metadata) |
+| POST | `ingest-batch` | Ingest many events (body: { events: [...] }) |
+| POST | `summarize-run` | Summarize last N minutes (body: { minutes: 20 }) |
+| GET | `search?q=...&limit=20` | Full-text search over memories |
+| GET | `recent-memories?limit=50` | Recent memories |
+| GET | `recent-events?limit=100&host=...` | Recent events, optional host filter |
+| GET | `workflow-graph?limit=500` | Workflow graph (nodes = hosts, edges = transitions) |
+| GET | `analytics-charts?limit=1000` | Chart data: by_type, by_host, over_time |
+
+---
+
+## Git and GitHub Pages
 
 ### Push to GitHub
 
@@ -20,132 +151,34 @@ git push -u origin main
 
 ### Enable GitHub Pages
 
-1. On GitHub: **Settings** → **Pages**.
-2. Under **Build and deployment**, set **Source** to **GitHub Actions**.
-3. On the next push to `main`, the workflow will build the frontend (static export) and deploy it.
-4. Your app will be live at **`https://YOUR_USERNAME.github.io/browser-memory/`**.
+1. Repo **Settings** → **Pages** → **Source**: **GitHub Actions**.
+2. After the next push, the frontend is at **`https://YOUR_USERNAME.github.io/browser-memory/`**.
 
-The deployed site shows a **“Not configured”** message until someone runs their own Supabase + backend (see below). To get a fully working instance, fork the repo and follow **For others to use** below.
+The deployed site shows “Not configured” until `NEXT_PUBLIC_SUPABASE_URL` (and anon key) are set for that build (e.g. via GitHub Actions secrets).
 
 ### For others to use (full instance)
 
-1. **Fork** (or clone) this repo.
-2. **Supabase:** Create a project, run `supabase/schema.sql`, enable Auth, copy URL + anon key.
-3. **Backend:** Deploy the `backend/` to [Render](https://render.com), [Railway](https://railway.app), or [Fly.io](https://fly.io), and set `SUPABASE_URL`, `SUPABASE_ANON_KEY`. Add the frontend and extension origins to CORS (e.g. your GitHub Pages URL and `chrome-extension://*`, `moz-extension://*`).
-4. **Frontend:** In the repo, set (e.g. in GitHub Actions or your own deploy):
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `NEXT_PUBLIC_API_BASE` = your backend URL
-   Then build and deploy (or re-run the GitHub Actions workflow with these as secrets).
-5. **Extension:** Load the `extension/` folder in Chrome or Firefox, then paste a Supabase access token from the frontend (after signing in).
+1. **Fork** the repo.
+2. **Supabase:** Create a project, run `supabase/schema.sql`, enable Auth, deploy Edge Functions (step 2 above), copy URL + anon key.
+3. **Frontend:** Set `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` (e.g. in GitHub Actions secrets or your host), then build and deploy.
+4. **Extension:** Load `extension/`, set Supabase URL and token in Options.
+
+No separate backend server is required.
 
 ---
 
-## Stack
+## Optional: legacy Python backend
 
-- **Supabase** – Auth, Postgres (events + memories), RLS, FTS
-- **FastAPI** – Ingest events, run summarizer, search API
-- **Next.js** – Login, search UI, “Summarize last 20m”, **workflow graph** (actionable flow from events)
-- **Browser extension (Chrome & Firefox, MV3)** – Capture tabs, clicks, form interactions; send to backend with Supabase token
+The **`backend/`** folder contains the original FastAPI app. It is **optional**; Edge Functions replace it. To run it locally instead of Edge Functions:
 
-## Repo structure
+- Start the backend: `cd backend && pip install -r requirements.txt && uvicorn main:app --reload --port 8000`
+- Set **`NEXT_PUBLIC_API_BASE=http://localhost:8000`** in the frontend so it calls the local API instead of Edge Functions.
+- In the extension, set the API base to `http://localhost:8000` (you’d need to add an “API base” field; currently the extension only supports Supabase URL → `/functions/v1`).
 
-```
-browser-memory/
-  backend/          # FastAPI
-  frontend/         # Next.js App Router
-  extension/        # Chrome & Firefox extension
-  supabase/         # schema.sql
-```
+---
 
-## 1. Supabase setup
+## Next steps
 
-1. Create a project at [supabase.com](https://supabase.com).
-2. In the SQL Editor, run the contents of **`supabase/schema.sql`** (tables, indexes, RLS, FTS, and `search_memories` RPC).
-3. In Authentication → Providers, enable Email (or your chosen provider).
-4. Create a user (or use signup from the frontend).
-5. In Project Settings → API, copy **Project URL** and **anon public** key.
-
-## 2. Backend
-
-```bash
-cd backend
-cp .env.example .env
-# Edit .env: SUPABASE_URL, SUPABASE_ANON_KEY, optionally FRONTEND_ORIGIN
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-```
-
-- **Health:** [http://localhost:8000/health](http://localhost:8000/health)
-
-## 3. Frontend
-
-```bash
-cd frontend
-cp .env.example .env.local
-# Edit .env.local: NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, NEXT_PUBLIC_API_BASE
-npm i
-npm run dev
-```
-
-- Open [http://localhost:3000](http://localhost:3000), sign in with your Supabase user.
-- Use **“Copy token for extension”** and paste that token into the extension Options (see below).
-
-## 4. Browser extension (Chrome or Firefox)
-
-The same extension works in both. Use your Supabase access token from the frontend (“Copy token for extension” button).
-
-### Chrome
-
-1. Open **chrome://extensions**.
-2. Enable **Developer mode**.
-3. Click **Load unpacked** and select the **`extension/`** folder.
-4. Open the extension **Options** (Details → Extension options, or right‑click → Options).
-5. Paste your token and click **Save**.
-
-### Firefox
-
-1. Open **about:debugging** in the address bar.
-2. Click **This Firefox** (left sidebar).
-3. Click **Load Temporary Add-on…**.
-4. In the file picker, go to **`browser-memory/extension`** and select **`manifest.json`** (the file, not the folder).
-5. The add-on loads temporarily. Click **Preferences** (or the extension’s options) to open the options page.
-6. Paste your token and click **Save**.
-
-**Note:** In Firefox, the add-on is temporary and will be removed when you close the browser. Reload it from **about:debugging** when you need it again.
-
-The extension will send tab and click/form events to `http://localhost:8000` when the backend is running.
-
-## 5. MVP demo flow
-
-1. Run Supabase (cloud), backend (8000), and frontend (3000).
-2. Apply **`supabase/schema.sql`** in the Supabase SQL editor.
-3. Sign in on the frontend.
-4. Copy token → paste in extension Options → Save.
-5. Browse (switch tabs, click, change inputs); extension sends events to the backend.
-6. In the frontend, click **“Summarize last 20m”** to turn recent events into memories.
-7. Use the search box to **search memories** (FTS when `search_memories` RPC is present, otherwise `ilike` fallback).
-
-## API (backend)
-
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/health` | Health check |
-| POST | `/ingest/event` | Ingest one event (body: `EventIn`) |
-| POST | `/ingest/batch` | Ingest many events (body: `BatchIn`) |
-| POST | `/summarize/run` | Summarize last N minutes (body: `SummarizeIn`, default 20) |
-| GET | `/search?q=...&limit=20` | Full-text search over memories |
-| GET | `/recent/memories?limit=50` | Recent memories |
-| GET | `/recent/events?limit=100` | Recent raw events |
-| GET | `/workflow/graph?limit=500` | Workflow graph (nodes = hosts, edges = transitions) |
-| GET | `/recent/events?limit=100&host=example.com` | Recent events, optional filter by host |
-| GET | `/analytics/charts?limit=1000` | Chart data: by_type, by_host, over_time |
-
-All except `/health` require **Authorization: Bearer &lt;Supabase access token&gt;** so RLS applies per user.
-
-## Next steps (after MVP)
-
-- Replace rule-based summarizer with an LLM (e.g. OpenAI).
+- Replace rule-based summarizer with an LLM (e.g. OpenAI) inside the `summarize-run` Edge Function.
 - Add `pgvector` and embeddings for semantic search.
-- Add a “memory retrieval policy” (recent + relevant + domain).
-- Self-updating cron: Supabase Edge Function or backend cron to run summarization on a schedule.
+- Add a scheduled Edge Function or cron to run summarization periodically.

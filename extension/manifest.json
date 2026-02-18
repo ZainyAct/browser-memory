@@ -2,7 +2,7 @@
   "manifest_version": 2,
   "name": "Browser Memory Logger",
   "version": "0.1.0",
-  "permissions": ["tabs", "storage", "activeTab", "http://localhost:8000/*"],
+  "permissions": ["tabs", "storage", "activeTab", "https://*.supabase.co/*"],
   "background": {
     "scripts": ["service_worker.js"]
   },

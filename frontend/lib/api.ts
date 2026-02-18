@@ -13,9 +13,18 @@ export const isConfigured =
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+/** Base URL for API: Supabase Edge Functions (default) or custom backend. */
+export function getApiBase(): string {
+  const custom = process.env.NEXT_PUBLIC_API_BASE;
+  if (custom && !custom.includes("placeholder")) return custom;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (url && !url.includes("placeholder")) return `${url.replace(/\/$/, "")}/functions/v1`;
+  return "";
+}
+
 export async function authedFetch(path: string, init?: RequestInit): Promise<Response> {
-  const base = process.env.NEXT_PUBLIC_API_BASE;
-  if (!base) throw new Error("NEXT_PUBLIC_API_BASE is not set. Add it to .env or .env.local");
+  const base = getApiBase();
+  if (!base) throw new Error("Configure NEXT_PUBLIC_SUPABASE_URL (or NEXT_PUBLIC_API_BASE) in .env.local");
 
   const { data } = await supabase.auth.getSession();
   const token = data.session?.access_token;
@@ -29,9 +38,7 @@ export async function authedFetch(path: string, init?: RequestInit): Promise<Res
       "Content-Type": "application/json",
     },
   }).catch(() => {
-    throw new Error(
-      "Could not reach the API. Is the backend running? Start it with: cd backend && uvicorn main:app --reload --port 8000"
-    );
+    throw new Error("Could not reach the API. Check your Supabase project and that Edge Functions are deployed.");
   });
   return res;
 }
@@ -43,7 +50,7 @@ export async function searchMemories(q: string, limit = 20): Promise<Memory[]> {
 }
 
 export async function getRecentMemories(limit = 50): Promise<Memory[]> {
-  const res = await authedFetch(`/recent/memories?limit=${limit}`);
+  const res = await authedFetch(`/recent-memories?limit=${limit}`);
   const json = (await res.json()) as { results?: Memory[] };
   return json.results ?? [];
 }
@@ -51,13 +58,13 @@ export async function getRecentMemories(limit = 50): Promise<Memory[]> {
 export async function getRecentEvents(limit = 100, host?: string): Promise<BrowserEvent[]> {
   const params = new URLSearchParams({ limit: String(limit) });
   if (host) params.set("host", host);
-  const res = await authedFetch(`/recent/events?${params}`);
+  const res = await authedFetch(`/recent-events?${params}`);
   const json = (await res.json()) as { results?: BrowserEvent[] };
   return json.results ?? [];
 }
 
 export async function runSummarize(minutes = 20): Promise<{ created_memories: number; reason?: string }> {
-  const res = await authedFetch("/summarize/run", {
+  const res = await authedFetch("/summarize-run", {
     method: "POST",
     body: JSON.stringify({ minutes }),
   });
@@ -65,11 +72,11 @@ export async function runSummarize(minutes = 20): Promise<{ created_memories: nu
 }
 
 export async function getWorkflowGraph(limit = 500): Promise<WorkflowGraph> {
-  const res = await authedFetch(`/workflow/graph?limit=${limit}`);
+  const res = await authedFetch(`/workflow-graph?limit=${limit}`);
   return res.json() as Promise<WorkflowGraph>;
 }
 
 export async function getAnalyticsCharts(limit = 1000): Promise<AnalyticsCharts> {
-  const res = await authedFetch(`/analytics/charts?limit=${limit}`);
+  const res = await authedFetch(`/analytics-charts?limit=${limit}`);
   return res.json() as Promise<AnalyticsCharts>;
 }

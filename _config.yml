@@ -1,0 +1,11 @@
+# Minimal Jekyll config for GitHub Pages.
+# The live site is built by the GitHub Actions workflow (Next.js static export),
+# not by Jekyll. This file exists so branch-based publishing does not run Jekyll
+# with defaults; the app is deployed from .github/workflows/deploy-pages.yml.
+
+title: Browser Memory Store
+description: "Searchable memory store for browser behavior (Next.js app deployed via Actions)"
+
+# Disable Jekyll processing of this repo when using branch-based source
+markdown: kramdown
+permalink: pretty

@@ -1,12 +1,12 @@
-const API_BASE = "http://localhost:8000";
-
 // Use same API as options page: Firefox = browser, Chrome = chrome
 const ext = (typeof browser !== "undefined" && browser.storage) ? browser : chrome;
 
-async function getToken() {
-  const obj = await ext.storage.local.get(["supabaseToken"]);
-  const supabaseToken = obj && obj.supabaseToken;
-  return supabaseToken || null;
+async function getApiConfig() {
+  const obj = await ext.storage.local.get(["supabaseUrl", "supabaseToken"]);
+  const url = (obj.supabaseUrl || "").trim().replace(/\/$/, "");
+  const token = obj.supabaseToken || null;
+  const apiBase = url ? `${url}/functions/v1` : null;
+  return { apiBase, token };
 }
 
 const DEBUG = true; // set to false to quiet logs
@@ -15,25 +15,25 @@ const DEBUG = true; // set to false to quiet logs
 let tokenCheckLogged = false;
 async function logTokenStatus() {
   if (!DEBUG || tokenCheckLogged) return;
-  const token = await getToken();
+  const { apiBase, token } = await getApiConfig();
   tokenCheckLogged = true;
-  if (token) {
-    console.log("[Browser Memory] Token in storage: yes, length", token.length, "– ready to send events.");
+  if (apiBase && token) {
+    console.log("[Browser Memory] API and token set – ready to send events.");
   } else {
-    console.log("[Browser Memory] Token in storage: NO. Open extension Options, paste your Supabase token, click Save.");
+    console.log("[Browser Memory] Open extension Options, set Supabase URL and paste token, then Save.");
   }
 }
 
 async function sendEvent(payload) {
-  const token = await getToken();
+  const { apiBase, token } = await getApiConfig();
   await logTokenStatus();
-  if (!token) {
-    if (DEBUG) console.log("[Browser Memory] No token – open extension Options and paste your Supabase token.");
+  if (!apiBase || !token) {
+    if (DEBUG) console.log("[Browser Memory] No Supabase URL or token – open extension Options and set both.");
     return;
   }
 
   try {
-    const res = await fetch(`${API_BASE}/ingest/event`, {
+    const res = await fetch(`${apiBase}/ingest-event`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
