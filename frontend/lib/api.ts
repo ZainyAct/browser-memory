@@ -5,7 +5,7 @@ const STORAGE_URL_KEY = "browser_memory_supabase_url";
 const STORAGE_ANON_KEY = "browser_memory_supabase_anon_key";
 const PLACEHOLDER = "https://placeholder.supabase.co";
 
-function getSupabaseUrl(): string {
+export function getSupabaseUrl(): string {
   if (typeof window !== "undefined") {
     const stored = localStorage.getItem(STORAGE_URL_KEY);
     if (stored) return stored;

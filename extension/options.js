@@ -20,22 +20,27 @@ async function load() {
     const preview = len > 20 ? supabaseToken.slice(0, 10) + "…" + supabaseToken.slice(-6) : "(short)";
     showStatus(`Loaded: token in storage (length ${len}). Preview: ${preview}`);
     console.log("[Browser Memory Options] Token loaded from storage, length:", len);
+  } else if (obj.supabaseUrl && !supabaseToken) {
+    showStatus("URL set from app. Paste your token above, then click Save.");
   } else {
-    showStatus("Enter Supabase URL and paste your token above, then click Save.");
+    showStatus("Paste your token and click Save — or open the app and click 'Send URL & token to extension' to set the URL automatically.");
     console.log("[Browser Memory Options] No URL/token in storage.");
   }
 }
 load();
 
 document.getElementById("save").addEventListener("click", async () => {
-  const supabaseUrl = supabaseUrlEl.value.trim().replace(/\/$/, "");
   const token = tokenEl.value.trim();
-  if (!supabaseUrl) {
-    showStatus("Enter your Supabase project URL first.", true);
+  if (!token) {
+    showStatus("Paste your token (or use 'Send URL & token' on the app first).", true);
     return;
   }
-  if (!token) {
-    showStatus("Paste a token, then click Save.", true);
+  const urlFromInput = supabaseUrlEl.value.trim().replace(/\/$/, "");
+  const stored = await ext.storage.local.get(["supabaseUrl", "supabaseToken"]);
+  const urlFromStorage = (stored && stored.supabaseUrl) || "";
+  const supabaseUrl = urlFromInput || urlFromStorage;
+  if (!supabaseUrl) {
+    showStatus("Enter the Supabase project URL, or open the app and click 'Send URL & token to extension' to set it automatically.", true);
     return;
   }
   try {
@@ -45,17 +50,15 @@ document.getElementById("save").addEventListener("click", async () => {
     console.error("[Browser Memory Options] storage.local.set error:", e);
     return;
   }
-  // Verify it was stored (read back)
   let obj2;
   try {
-    obj2 = await ext.storage.local.get(["supabaseToken"]);
+    obj2 = await ext.storage.local.get(["supabaseUrl", "supabaseToken"]);
   } catch (e) {
     showStatus("Storage get failed: " + e.message, true);
     console.error("[Browser Memory Options] storage.local.get error:", e);
     return;
   }
   const supabaseToken = obj2 && obj2.supabaseToken;
-  console.log("[Browser Memory Options] After save, get returned:", typeof obj2, obj2 ? Object.keys(obj2) : "n/a", "supabaseToken length:", supabaseToken ? supabaseToken.length : "missing");
   const storedUrl = obj2 && obj2.supabaseUrl;
   if (supabaseToken === token && storedUrl === supabaseUrl) {
     showStatus(`Saved. API: ${supabaseUrl}/functions/v1 — Reload the extension, then switch tabs to test.`);

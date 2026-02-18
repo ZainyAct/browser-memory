@@ -6,6 +6,7 @@ import {
   supabase,
   isConfigured,
   setRuntimeSupabaseConfig,
+  getSupabaseUrl,
   searchMemories,
   getRecentMemories,
   getRecentEvents,
@@ -294,6 +295,26 @@ export default function Page() {
     }
   };
 
+  const sendUrlAndTokenToExtension = () => {
+    const url = getSupabaseUrl();
+    if (!url || url.includes("placeholder")) {
+      setStatus("App is not configured with a Supabase URL.");
+      return;
+    }
+    supabase.auth.getSession().then(({ data }) => {
+      const token = data.session?.access_token;
+      if (!token) {
+        setStatus("Not logged in.");
+        return;
+      }
+      window.postMessage(
+        { type: "BROWSER_MEMORY_SET_CONFIG", url: url.replace(/\/$/, ""), token },
+        window.location.origin
+      );
+      setStatus("Sent URL & token to extension. Open extension Options and click Save.");
+    });
+  };
+
   if (!loggedIn) {
     const isPending = status.startsWith("Logging") || status.startsWith("Creating");
     const isSuccess = status === "Logged in." || status === "Account created. Logged in." || status.includes("Check your email");
@@ -358,16 +379,19 @@ export default function Page() {
               <p style={{ fontSize: 14, color: "var(--text-muted)", margin: 0 }}>Go to <code style={{ background: "var(--bg-elevated)", padding: "2px 6px", borderRadius: 4 }}>chrome://extensions</code> → turn on <strong>Developer mode</strong> → <strong>Load unpacked</strong> → select the <code>extension</code> folder.</p>
             </section>
             <section style={{ marginBottom: 20 }}>
-              <h3 style={{ fontSize: 15, marginBottom: 8, color: "var(--text)" }}>2. Add your token in the extension</h3>
-              <ol style={{ margin: 0, paddingLeft: 20, fontSize: 14, color: "var(--text-muted)", lineHeight: 1.6 }}>
-                <li>Right‑click the extension icon → <strong>Options</strong> (or open Options from the extensions page).</li>
-                <li>Enter your <strong>Supabase project URL</strong> (e.g. <code>https://xxxx.supabase.co</code>).</li>
-                <li>Paste the <strong>access token</strong> (click Copy token below, then paste in the token field).</li>
-                <li>Click <strong>Save</strong>, then reload the extension if needed.</li>
-              </ol>
+              <h3 style={{ fontSize: 15, marginBottom: 8, color: "var(--text)" }}>2. Connect the extension (using this app’s project)</h3>
+              <p style={{ fontSize: 14, color: "var(--text-muted)", marginBottom: 10 }}>
+                Click <strong>Send URL & token to extension</strong> below — the extension will get this app’s Supabase URL and your token. Then open the extension <strong>Options</strong> and click <strong>Save</strong>. You don’t need to enter the URL manually.
+              </p>
+              <p style={{ fontSize: 13, color: "var(--text-muted)", marginBottom: 10 }}>
+                Or paste the token yourself: copy it below, open extension Options, enter the Supabase URL and token, then Save.
+              </p>
             </section>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <button type="button" className="btn-primary" onClick={copyTokenFromModal}>
+              <button type="button" className="btn-primary" onClick={sendUrlAndTokenToExtension}>
+                Send URL & token to extension
+              </button>
+              <button type="button" className="btn-secondary" onClick={copyTokenFromModal}>
                 Copy token
               </button>
               <button type="button" className="btn-secondary" onClick={() => setShowExtensionModal(false)}>

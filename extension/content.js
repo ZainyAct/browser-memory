@@ -1,4 +1,20 @@
 const ext = (typeof chrome !== "undefined" && chrome.runtime ? chrome : browser);
+
+// Allow app to push Supabase URL + token so user doesn't have to type the URL in options
+function isAppOrigin(origin) {
+  return /^https:\/\/[^/]+\.github\.io$/.test(origin) || /^http:\/\/localhost(:\d+)?$/.test(origin);
+}
+window.addEventListener("message", function (event) {
+  if (event.source !== window || !event.data || event.data.type !== "BROWSER_MEMORY_SET_CONFIG") return;
+  if (!isAppOrigin(event.origin)) return;
+  const url = (event.data.url || "").trim().replace(/\/$/, "");
+  const token = (event.data.token || "").trim();
+  if (!url || !token) return;
+  ext.storage.local.set({ supabaseUrl: url, supabaseToken: token }).then(function () {
+    if (window.__BROWSER_MEMORY_DEBUG) console.log("[Browser Memory] Saved URL and token from app.");
+  });
+});
+
 function send(payload) {
   ext.runtime.sendMessage({ kind: "event", payload });
   if (typeof window !== "undefined" && window.__BROWSER_MEMORY_DEBUG) {
