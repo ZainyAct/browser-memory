@@ -102,6 +102,7 @@ export default function Page() {
   const [activeTab, setActiveTab] = useState<ViewTab>("search");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(false);
 
   if (typeof window !== "undefined" && !isConfigured) {
     return (
@@ -116,7 +117,20 @@ export default function Page() {
   }, []);
 
   const handleLogin = async () => {
-    setStatus("Logging in...");
+    setStatus(isSignUp ? "Creating account..." : "Logging in...");
+    if (isSignUp) {
+      const { data, error } = await supabase.auth.signUp({ email, password });
+      if (error) {
+        setStatus(error.message);
+        return;
+      }
+      if (data.user && !data.session) {
+        setStatus("Check your email for the confirmation link.");
+        return;
+      }
+      setStatus("Account created. Logged in.");
+      return;
+    }
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setStatus(error ? error.message : "Logged in.");
   };
@@ -270,11 +284,15 @@ export default function Page() {
   };
 
   if (!loggedIn) {
+    const isPending = status.startsWith("Logging") || status.startsWith("Creating");
+    const isSuccess = status === "Logged in." || status === "Account created. Logged in." || status.includes("Check your email");
     return (
       <div className="login-wrap">
         <div className="login-card card">
           <h1 className="login-title">Browser Memory Store</h1>
-          <p className="login-subtitle">Sign in with your Supabase account</p>
+          <p className="login-subtitle">
+            {isSignUp ? "Create an account with your email" : "Sign in with your account"}
+          </p>
           <input
             type="email"
             placeholder="Email"
@@ -290,9 +308,17 @@ export default function Page() {
             aria-label="Password"
           />
           <button type="button" className="btn-primary login-btn" onClick={handleLogin}>
-            Sign in
+            {isSignUp ? "Sign up" : "Sign in"}
           </button>
-          <p className={`status-message ${status.startsWith("Logging") ? "" : status === "Logged in." ? "success" : "error"}`}>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ marginTop: 8, background: "transparent", border: "none", color: "var(--text-muted)", fontSize: 14, cursor: "pointer", textDecoration: "underline" }}
+            onClick={() => { setIsSignUp(!isSignUp); setStatus(""); }}
+          >
+            {isSignUp ? "Already have an account? Sign in" : "Don't have an account? Sign up"}
+          </button>
+          <p className={`status-message ${isPending ? "" : isSuccess ? "success" : "error"}`}>
             {status || "\u00a0"}
           </p>
         </div>
