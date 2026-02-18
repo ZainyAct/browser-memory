@@ -43,9 +43,16 @@ After the next successful deploy, the site will be at:
 ## 4. Trigger the first deploy
 
 - **Option A:** Push any commit to `main` (e.g. a small change or empty commit: `git commit --allow-empty -m "Trigger Pages deploy" && git push`).
-- **Option B:** Go to **Actions** → **Deploy to GitHub Pages** → **Run workflow** → Run.
+- **Option B:** Go to **Actions** → **Deploy to GitHub Pages** → **Run workflow** → **Run workflow** (green button). This runs the workflow even if push didn’t trigger it.
 
 Wait for the workflow to finish. Then open **Settings** → **Pages** again; the URL will be shown at the top when the deployment is ready.
+
+### If the workflow didn’t run on push
+
+1. **Enable Pages from Actions:** **Settings** → **Pages** → **Build and deployment** → **Source:** **GitHub Actions**. (If this wasn’t set, the workflow may not appear or deploy may fail.)
+2. **Run it manually:** **Actions** tab → **Deploy to GitHub Pages** (left sidebar) → **Run workflow** → choose branch **main** → **Run workflow**.
+3. **Check the default branch:** The workflow file must be on your repo’s default branch (usually `main`). If your default is `master`, either change it under **Settings** → **General** or change the workflow trigger to `branches: ["master"]`.
+4. **Confirm the workflow file is on GitHub:** **Actions** → you should see “Deploy to GitHub Pages” in the list. If not, push again: `git push origin main`.
 
 ---
 
